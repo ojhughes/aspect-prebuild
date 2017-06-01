@@ -1,0 +1,72 @@
+
+buildscript {
+
+    repositories {
+        mavenCentral()
+        maven {
+            url 'http://repo.spring.io/plugins-release'
+        }
+
+    }
+
+}
+
+
+apply plugin: 'java'
+apply plugin: 'eclipse'
+apply plugin: 'idea'
+
+
+
+configurations {
+    ajc
+    aspects
+    aspectCompile
+    compile{
+        extendsFrom aspects
+    }
+}
+repositories {
+    mavenCentral()
+    maven {
+        url "https://repo.eclipse.org/content/groups/releases"
+    }
+}
+dependencies {
+
+    //Dependencies required for aspect compilation
+    def aspectjVersion = "1.8.10"
+
+    ajc "org.aspectj:aspectjtools:$aspectjVersion"
+    compile("org.eclipse.jgit:org.eclipse.jgit:4.6.1.201703071140-r"){
+        exclude group: "org.slf4j"
+
+    }
+    compile("org.eclipse.jgit.feature:org.eclipse.jgit.http.apache:4.6.1.201703071140-r"){
+        exclude group: "org.slf4j"
+    }
+    compile("org.aspectj:aspectjweaver:1.8.9")
+}
+
+compileJava {
+    sourceCompatibility="1.8"
+    targetCompatibility="1.8"
+
+    dependsOn configurations.ajc.getTaskDependencyFromProjectDependency(true, "compileJava")
+
+    doLast{
+        ant.taskdef( resource:"org/aspectj/tools/ant/taskdefs/aspectjTaskdefs.properties", classpath: configurations.ajc.asPath)
+        ant.iajc(source:"1.8", target:"1.8", destDir:sourceSets.main.output.classesDir.absolutePath, maxmem:"512m", fork:"true",
+                inpath:configurations.aspects.asPath,
+                sourceRootCopyFilter:"**/.svn/*,**/*.java",classpath:configurations.compile.asPath){
+            sourceroots{
+                sourceSets.main.java.srcDirs.each{
+                    pathelement(location:it.absolutePath)
+                }
+            }
+        }
+    }
+}
+
+compileJava.dependsOn(processResources)
+
